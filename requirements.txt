@@ -13,3 +13,5 @@ streamlit
 streamlit-drawable-canvas
 streamlit-folium
 pyodbc
+plotly
+
