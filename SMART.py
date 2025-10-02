@@ -140,15 +140,49 @@ if 'available_dates' not in st.session_state:
 # ===== DATABASE CONNECTION =====
 @st.cache_resource
 def make_engine():
-    s = st.secrets["dbo"]
-    odbc_str = (
-        f"DRIVER={{{s['driver']}}};"
-        f"SERVER={s['host']},{s['port']};DATABASE={s['database']};UID={s['username']};PWD={s['password']};"
-        "Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;"
-    )
-    url = "mssql+pyodbc:///?odbc_connect=" + urllib.parse.quote_plus(odbc_str)
-    engine = create_engine(url)
-    return engine
+    try:
+        s = st.secrets["dbo"]
+        
+        # Try different ODBC drivers in order of preference
+        drivers_to_try = [
+            "ODBC Driver 17 for SQL Server",
+            "ODBC Driver 13 for SQL Server", 
+            "ODBC Driver 11 for SQL Server",
+            "SQL Server Native Client 11.0",
+            "SQL Server"
+        ]
+        
+        engine = None
+        last_error = None
+        
+        for driver in drivers_to_try:
+            try:
+                odbc_str = (
+                    f"DRIVER={{{driver}}};"
+                    f"SERVER={s['host']},{s['port']};DATABASE={s['database']};UID={s['username']};PWD={s['password']};"
+                    "Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;"
+                )
+                url = "mssql+pyodbc:///?odbc_connect=" + urllib.parse.quote_plus(odbc_str)
+                engine = create_engine(url)
+                
+                # Test the connection
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                
+                st.sidebar.success(f"Connected using: {driver}")
+                return engine
+                
+            except Exception as e:
+                last_error = e
+                continue
+        
+        # If all drivers fail, show error
+        raise Exception(f"Could not connect with any ODBC driver. Last error: {str(last_error)}")
+        
+    except Exception as e:
+        st.error(f"Database connection failed: {str(e)}")
+        st.info("Please check your database configuration in Streamlit secrets.")
+        st.stop()
 
 engine = make_engine()
 
@@ -1264,4 +1298,5 @@ elif st.session_state.get('force_new_review', False) or not existing_review:
 st.markdown("---")
 col_f1, col_f2, col_f3 = st.columns([1, 2, 1])
 with col_f2:
+
     st.caption(f"🔒 SMART Dashboard | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Region: {region} | SPV: {supervisor}")
