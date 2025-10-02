@@ -69,7 +69,7 @@ def afterlogin():
     hal = [
         st.Page("SMART.py", title="S.M.A.R.T.", icon="💡"),
         st.Page("smartsummary.py", title="S.M.A.R.T. Summary & Result", icon="✅"),
-        st.Page("SRPeformance.py", title="SR Performance", icon="🏅"),
+        st.Page("SRpeformance.py", title="SR Performance", icon="🏅"),
         st.Page("Outletmanagement.py", title = "Outlet Management", icon = "🏪"),
         st.Page("bd.py", title = "Brand Distribution", icon = "🧮"),
         st.Page("weekly_comp.py", title="Weekly Comparation", icon="📆"),
@@ -90,4 +90,5 @@ def main():
         afterlogin()  
 
 if __name__ == "__main__":
+
     main()
