@@ -34,16 +34,49 @@ st.set_page_config(page_title="Customer Distribution by Brand", layout="wide")
 # ---------------- DB connection ----------------
 @st.cache_resource
 def make_engine():
-    s = st.secrets["dbo"]
-    odbc_str = (
-        f"DRIVER={{{s['driver']}}};"
-        f"SERVER={s['host']},{s['port']};DATABASE={s['database']};UID={s['username']};PWD={s['password']};"
-        "Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;"
-    )
-    url = "mssql+pyodbc:///?odbc_connect=" + urllib.parse.quote_plus(odbc_str)
-
-    eng = create_engine(url)
-    return eng
+    try:
+        s = st.secrets["dbo"]
+        
+        # Try different ODBC drivers in order of preference
+        drivers_to_try = [
+            "ODBC Driver 17 for SQL Server",
+            "ODBC Driver 13 for SQL Server", 
+            "ODBC Driver 11 for SQL Server",
+            "SQL Server Native Client 11.0",
+            "SQL Server"
+        ]
+        
+        engine = None
+        last_error = None
+        
+        for driver in drivers_to_try:
+            try:
+                odbc_str = (
+                    f"DRIVER={{{driver}}};"
+                    f"SERVER={s['host']},{s['port']};DATABASE={s['database']};UID={s['username']};PWD={s['password']};"
+                    "Encrypt=yes;TrustServerCertificate=yes;Connection Timeout=30;"
+                )
+                url = "mssql+pyodbc:///?odbc_connect=" + urllib.parse.quote_plus(odbc_str)
+                engine = create_engine(url)
+                
+                # Test the connection
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                
+                st.sidebar.success(f"Connected using: {driver}")
+                return engine
+                
+            except Exception as e:
+                last_error = e
+                continue
+        
+        # If all drivers fail, show error
+        raise Exception(f"Could not connect with any ODBC driver. Last error: {str(last_error)}")
+        
+    except Exception as e:
+        st.error(f"Database connection failed: {str(e)}")
+        st.info("Please check your database configuration in Streamlit secrets.")
+        st.stop()
 
 engine = make_engine()
 
@@ -684,4 +717,5 @@ else:  # Weekly Comparison page
             data=csv_weekly,
             file_name=f"weekly_distribution_{d1}_{d2}.csv",
             mime="text/csv"
+
         )
